@@ -81,9 +81,7 @@ namespace L4_LoadBalancer.Tests.BackgroundServices
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            await _service.RunAsync(cts.Token);
-
-            // No exception = pass
+            await _service.RunAsync(cts.Token);            
         }
 
     }
