@@ -19,11 +19,13 @@ namespace L4_LoadBalancer.BackgroundServices
         private readonly TimeSpan _interval;
         private readonly int _failureThreshold;
         private readonly ILogger<HealthCheckService> _logger;
-        public HealthCheckService(BackendPool pool,TimeSpan interval, ILogger<HealthCheckService> logger,int failureThreshold = 3)
+        private readonly IBackendHealthProbe _probe;
+        public HealthCheckService(BackendPool pool,TimeSpan interval, ILogger<HealthCheckService> logger,IBackendHealthProbe probe,int failureThreshold = 3)
         {
             _pool = pool;
             _interval = interval;
             _logger = logger;
+            _probe = probe;
             _failureThreshold = failureThreshold;
         }
 
@@ -36,7 +38,7 @@ namespace L4_LoadBalancer.BackgroundServices
                 {
                     foreach (var backend in _pool.All)
                     {
-                        bool ok = await TcpProbeAsync(backend, ct);
+                        bool ok = await _probe.ProbeAsync(backend, ct);
 
                         if (ok)
                             backend.MarkSuccess();
@@ -56,25 +58,6 @@ namespace L4_LoadBalancer.BackgroundServices
                 _logger.LogError(ex, "HealthChecker crashed unexpectedly");
             }
         }
-
-        private static async Task<bool> TcpProbeAsync(Backend backend, CancellationToken ct)
-        {
-            try
-            {
-                if (backend.EndPoint is not DnsEndPoint dns)
-                    return false;
-
-                using var client = new TcpClient();
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(500);
-
-                await client.ConnectAsync(dns.Host, dns.Port, timeoutCts.Token);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        
     }
 }

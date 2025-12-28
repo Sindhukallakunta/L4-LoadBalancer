@@ -28,7 +28,7 @@ namespace L4_LoadBalancer.BackgroundServices
         public IReadOnlyList<Backend> Healthy()
         {
             lock (_lock)
-                return _backends.Where(b => b.Healthy).ToList();
+                return _backends.Where(b => b.IsHealthy).ToList();
         }
     }
 }

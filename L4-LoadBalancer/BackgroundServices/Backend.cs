@@ -13,7 +13,9 @@ namespace L4_LoadBalancer.BackgroundServices
     public class Backend
     {
         public EndPoint EndPoint { get; }
-        public volatile bool Healthy = true;
+        private volatile bool _healthy = true;
+        public bool IsHealthy => _healthy;
+
 
         private int _activeConnections;
         public int ActiveConnections => Volatile.Read(ref _activeConnections);
@@ -28,13 +30,13 @@ namespace L4_LoadBalancer.BackgroundServices
         public void MarkFailure(int threshold)
         {
             if (Interlocked.Increment(ref _failureCount) >= threshold)
-                Healthy = false;
+                _healthy = false;
         }
 
         public void MarkSuccess()
         {
             _failureCount = 0;
-            Healthy = true;
+            _healthy = true;
         }
     }
 }

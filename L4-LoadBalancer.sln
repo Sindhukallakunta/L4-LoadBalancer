@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35527.113 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4-LoadBalancer", "L4-LoadBalancer\L4-LoadBalancer.csproj", "{885A25E3-BE3F-4656-96CE-4F610FBFAEB4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4-LoadBalancer.Tests", "L4-LoadBalancer.Tests\L4-LoadBalancer.Tests.csproj", "{09B6FF94-0BF5-45E1-9F5B-66C57612ACB2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{885A25E3-BE3F-4656-96CE-4F610FBFAEB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{885A25E3-BE3F-4656-96CE-4F610FBFAEB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{885A25E3-BE3F-4656-96CE-4F610FBFAEB4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{09B6FF94-0BF5-45E1-9F5B-66C57612ACB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09B6FF94-0BF5-45E1-9F5B-66C57612ACB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09B6FF94-0BF5-45E1-9F5B-66C57612ACB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09B6FF94-0BF5-45E1-9F5B-66C57612ACB2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

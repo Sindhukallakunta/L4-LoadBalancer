@@ -8,17 +8,17 @@ namespace L4_LoadBalancer.Core
     /// <summary>
     /// Listens for incoming TCP client connections and proxies traffic to backend servers using a load-balancing strategy
     /// </summary>
-    public class TcpConnectionListener
+    public class TcpLoadBalancer
     {
         private readonly IPEndPoint _listen;
         private readonly BackendPool _pool;
         private readonly ILoadBalancingStrategy _strategy;
-        private readonly ILogger<TcpConnectionListener> _logger;
+        private readonly ILogger<TcpLoadBalancer> _logger;
 
         private TcpListener? _listener;
         private int _activeConnections;
 
-        public TcpConnectionListener(IPEndPoint listen,BackendPool pool,ILoadBalancingStrategy strategy,ILogger<TcpConnectionListener> logger)
+        public TcpLoadBalancer(IPEndPoint listen,BackendPool pool,ILoadBalancingStrategy strategy,ILogger<TcpLoadBalancer> logger)
         {
             _listen = listen;
             _pool = pool;

@@ -35,20 +35,22 @@ services.AddSingleton(
 );
 services.AddSingleton(new BackendPool(backends));
 services.AddSingleton<ILoadBalancingStrategy, RoundRobinStrategy>();
-services.AddSingleton<TcpConnectionListener>();
+services.AddSingleton<TcpLoadBalancer>();
+services.AddSingleton<IBackendHealthProbe, TcpBackendHealthProbe>();
 
 services.AddSingleton(provider =>
     new HealthCheckService(
         provider.GetRequiredService<BackendPool>(),
         TimeSpan.FromSeconds(healthOptions.IntervalSeconds),
-        provider.GetRequiredService<ILogger<HealthCheckService>>()
+        provider.GetRequiredService<ILogger<HealthCheckService>>(),
+        provider.GetRequiredService<IBackendHealthProbe>()
     )
 );
 
 
 using var provider = services.BuildServiceProvider();
 
-var lb = provider.GetRequiredService<TcpConnectionListener>();
+var lb = provider.GetRequiredService<TcpLoadBalancer>();
 var healthChecker = provider.GetRequiredService<HealthCheckService>();
 
 var cts = new CancellationTokenSource();
