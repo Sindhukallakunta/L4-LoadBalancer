@@ -17,7 +17,7 @@ namespace L4_LoadBalancer.Core
 
         private TcpListener? _listener;
         private int _activeConnections;
-
+        private readonly TimeSpan _drainTimeout = TimeSpan.FromSeconds(30);
         public TcpLoadBalancer(IPEndPoint listen,BackendPool pool,ILoadBalancingStrategy strategy,ILogger<TcpLoadBalancer> logger)
         {
             _listen = listen;
@@ -51,13 +51,26 @@ namespace L4_LoadBalancer.Core
             {
                 _logger.LogInformation("Shutdown signal received");
             }
+            catch (ObjectDisposedException)
+            {
+                _logger.LogInformation("Listener disposed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception caught");
+            }
             finally
             {
                 _listener.Stop();
                 _logger.LogInformation("Stopped accepting new connections. Waiting for {Count} active connections to finish",_activeConnections);
-
+                var drainStart = DateTime.UtcNow;
                 while (Volatile.Read(ref _activeConnections) > 0)
                 {
+                    if (DateTime.UtcNow - drainStart > _drainTimeout)
+                    {
+                        _logger.LogWarning("Drain timeout exceeded with {Count} active connections",_activeConnections);
+                        break;
+                    }
                     await Task.Delay(100);
                 }
 
@@ -73,37 +86,44 @@ namespace L4_LoadBalancer.Core
         /// <returns></returns>
         private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
         {
-            try
+            var connectionId = Guid.NewGuid().ToString("N");
+            using (_logger.BeginScope(new Dictionary<string, object>
             {
-                var backend = _strategy.Pick(_pool.Healthy());
-
-                _logger.LogInformation("Routing connection to backend {Backend}",backend.EndPoint);
-
-                using var upstream = new TcpClient();
-
-                if (backend.EndPoint is DnsEndPoint dns)
-                    await upstream.ConnectAsync(dns.Host, dns.Port, ct);
-
-                using var clientStream = client.GetStream();
-                using var backendStream = upstream.GetStream();
-
-                var t1 = clientStream.CopyToAsync(backendStream, ct);
-                var t2 = backendStream.CopyToAsync(clientStream, ct);
-
-                await Task.WhenAny(t1, t2);
-            }
-            catch (OperationCanceledException)
+                ["ConnectionId"] = connectionId
+            }))
             {
-                _logger.LogDebug("Connection cancelled");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Connection handling failed");
-            }
-            finally
-            {
-                client.Close();
-                Interlocked.Decrement(ref _activeConnections);
+                try
+                {
+                    var backend = _strategy.Pick(_pool.Healthy());
+
+                    _logger.LogInformation("Routing connection to backend {Backend}", backend.EndPoint);
+
+                    using var upstream = new TcpClient();
+
+                    if (backend.EndPoint is DnsEndPoint dns)
+                        await upstream.ConnectAsync(dns.Host, dns.Port, ct);
+
+                    using var clientStream = client.GetStream();
+                    using var backendStream = upstream.GetStream();
+
+                    var t1 = clientStream.CopyToAsync(backendStream, ct);
+                    var t2 = backendStream.CopyToAsync(clientStream, ct);
+
+                    await Task.WhenAny(t1, t2);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("Connection cancelled");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Connection handling failed");
+                }
+                finally
+                {
+                    client.Close();
+                    Interlocked.Decrement(ref _activeConnections);
+                }
             }
         }
     }

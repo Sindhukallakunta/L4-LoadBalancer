@@ -8,18 +8,25 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using Serilog;
 
-var services = new ServiceCollection();
-
-services.AddLogging(builder =>
-{
-    builder.AddConsole().SetMinimumLevel(LogLevel.Information);
-});
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false)
     .Build();
+
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(configuration)
+    .CreateLogger();
+var services = new ServiceCollection();
+
+services.AddLogging(builder =>
+{
+    builder.ClearProviders();
+    builder.AddSerilog();
+});
+
 
 var healthOptions = configuration
     .GetSection("HealthCheck")
@@ -53,9 +60,24 @@ using var provider = services.BuildServiceProvider();
 var lb = provider.GetRequiredService<TcpLoadBalancer>();
 var healthChecker = provider.GetRequiredService<HealthCheckService>();
 
-var cts = new CancellationTokenSource();
+ var cts = new CancellationTokenSource();
 
-_ = Task.Run(() => healthChecker.RunAsync(cts.Token));
+Console.CancelKeyPress += (_, e) =>
+{
+    e.Cancel = true;
+    cts.Cancel();
+};
 
-var ctsLB = new CancellationTokenSource();
-await lb.RunAsync(ctsLB.Token);
+
+AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+{
+    cts.Cancel();
+};
+
+var healthTask = Task.Run(() => healthChecker.RunAsync(cts.Token));
+
+var lbTask= lb.RunAsync(cts.Token);
+
+await lbTask;
+
+await healthTask;
