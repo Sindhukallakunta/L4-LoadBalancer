@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using Serilog;
+using Microsoft.Extensions.Options;
 
 
 var configuration = new ConfigurationBuilder()
@@ -37,18 +38,48 @@ var backends = BackendConfigLoader.LoadBackendsFromJson(Path.Combine(
     "Configuration",
     "backends.json"));
 
-services.AddSingleton(
-    new IPEndPoint(IPAddress.Any, 9000)
-);
+services.AddOptions<ListenerOptions>()
+    .Bind(configuration.GetSection("Listener"))
+    .Validate(o => o.Port is > 0 and < 65536, "Listener port must be valid")
+    .Validate(o => IPAddress.TryParse(o.Address, out _),
+              "Listener address must be a valid IP address")
+    .ValidateOnStart();
+
+services.AddOptions<LoadBalancingOptions>()
+    .Bind(configuration.GetSection("LoadBalancing"))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.Strategy),
+              "LoadBalancing:Strategy must be configured")
+    .ValidateOnStart();
+
+services.AddSingleton<IPEndPoint>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<ListenerOptions>>().Value;
+    return new IPEndPoint(IPAddress.Parse(options.Address), options.Port);
+});
+
 services.AddSingleton(new BackendPool(backends));
-services.AddSingleton<ILoadBalancingStrategy, RoundRobinStrategy>();
+services.AddSingleton<RoundRobinStrategy>();
+
+services.AddSingleton<ILoadBalancingStrategy>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<LoadBalancingOptions>>().Value;
+
+    return options.Strategy.ToLower() switch
+    {
+        "roundrobin" =>
+            sp.GetRequiredService<RoundRobinStrategy>(),        
+
+        _ => throw new InvalidOperationException(
+            $"Unknown load balancing strategy '{options.Strategy}'")
+    };
+});
 services.AddSingleton<TcpLoadBalancer>();
 services.AddSingleton<IBackendHealthProbe, TcpBackendHealthProbe>();
 
 services.AddSingleton(provider =>
     new HealthCheckService(
         provider.GetRequiredService<BackendPool>(),
-        TimeSpan.FromSeconds(healthOptions.IntervalSeconds),
+        TimeSpan.FromSeconds(healthOptions==null?0:healthOptions.IntervalSeconds),
         provider.GetRequiredService<ILogger<HealthCheckService>>(),
         provider.GetRequiredService<IBackendHealthProbe>()
     )

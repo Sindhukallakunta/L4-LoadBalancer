@@ -11,7 +11,7 @@ namespace L4_LoadBalancer.Configuration
     /// </summary>
     public class HealthCheckOptions
     {
-        public int IntervalSeconds { get; set; }
+        public int IntervalSeconds { get; set; } = 0;
         public int FailureThreshold { get; set; }
     }
 }
