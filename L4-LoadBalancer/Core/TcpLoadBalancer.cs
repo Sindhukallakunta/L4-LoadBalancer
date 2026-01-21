@@ -42,7 +42,6 @@ namespace L4_LoadBalancer.Core
                 while (!ct.IsCancellationRequested)
                 {
                     var client = await _listener.AcceptTcpClientAsync(ct);
-                    Interlocked.Increment(ref _activeConnections);
 
                     _ = Task.Run(() => HandleClientAsync(client, ct));
                 }
@@ -94,6 +93,8 @@ namespace L4_LoadBalancer.Core
             {
                 try
                 {
+
+                    Interlocked.Increment(ref _activeConnections);
                     var backend = _strategy.Pick(_pool.Healthy());
 
                     _logger.LogInformation("Routing connection to backend {Backend}", backend.EndPoint);
